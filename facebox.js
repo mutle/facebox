@@ -46,6 +46,8 @@
  *    jQuery.facebox({ ajax: 'remote.html' }, 'my-groovy-style')
  *    jQuery.facebox({ image: 'stairs.jpg' })
  *    jQuery.facebox({ image: 'stairs.jpg' }, 'my-groovy-style')
+ *    jQuery.facebox({ iframe: 'remote.html })
+ *    jQuery.facebox({ iframe: 'remote.html }, 'my-groovy-style')
  *    jQuery.facebox({ div: '#box' })
  *    jQuery.facebox({ div: '#box' }, 'my-groovy-style')
  *
@@ -72,6 +74,7 @@
     if (data.ajax) fillFaceboxFromAjax(data.ajax, klass)
     else if (data.image) fillFaceboxFromImage(data.image, klass)
     else if (data.div) fillFaceboxFromHref(data.div, klass)
+    else if (data.iframe) fillFaceboxFromIFrame(data.iframe, klass);
     else if ($.isFunction(data)) data.call($)
     else $.facebox.reveal(data, klass)
   }
@@ -137,14 +140,20 @@
       })
       $(document).trigger('loading.facebox')
     },
-
+    
+    updatePosition: function() {
+      newleft = $(window).width() / 2 - ($('#facebox table').width() / 2)
+      if(newleft < 0) newleft = 0
+      $('#facebox').css('left', newleft)
+    },
+    
     reveal: function(data, klass) {
       $(document).trigger('beforeReveal.facebox')
       if (klass) $('#facebox .content').addClass(klass)
       $('#facebox .content').append(data)
       $('#facebox .loading').remove()
       $('#facebox .body').children().fadeIn('normal')
-      $('#facebox').css('left', $(window).width() / 2 - ($('#facebox table').width() / 2))
+      this.updatePosition()
       $(document).trigger('reveal.facebox').trigger('afterReveal.facebox')
     },
 
@@ -270,13 +279,24 @@
   function fillFaceboxFromImage(href, klass) {
     var image = new Image()
     image.onload = function() {
-      $.facebox.reveal('<div class="image"><img src="' + image.src + '" /></div>', klass)
+      $.facebox.reveal('<div class="image"><img style="max-width: 700px;" src="' + image.src + '" /></div>', klass)
+      $('#facebox .image img').click(function () {
+        $(this).css('max-width', ($(this).css('max-width') == '700px' ? null : '700px'))
+        $.facebox.updatePosition()
+      });
     }
     image.src = href
   }
 
   function fillFaceboxFromAjax(href, klass) {
     $.get(href, function(data) { $.facebox.reveal(data, klass) })
+  }
+  
+  function fillFaceboxFromIFrame(href, klass) {
+    $.facebox.reveal('<iframe id="facebox_iframe" scrolling="no" frameBorder="0" border="0" src=""></iframe>', klass);
+    $('#facebox_iframe').attr('src', href).load(function () {
+      $(document).trigger('resize.facebox');
+    });
   }
 
   function skipOverlay() {
@@ -320,6 +340,21 @@
       hideOverlay()
       $('#facebox .loading').remove()
     })
+  })
+  
+  $(document).bind('resize.facebox', function() {
+    var self = $('#facebox_iframe')
+    var innerdoc = document.getElementById('facebox_iframe').contentWindow.document
+    var newheight = 0
+    if(jQuery.browser.msie) {
+      newheight = innerDoc.body.scrollHeight
+    } else if (innerdoc && innerdoc.body && innerdoc.body.offsetHeight) {
+      newheight = innerdoc.body.offsetHeight
+    } else if(innerdoc && innerdoc.body && innerdoc.body.scrollHeight) {
+      newheight = innerdoc.body.scrollHeight
+    }
+    
+    self.css('height', newheight+'px')
   })
 
 })(jQuery);
